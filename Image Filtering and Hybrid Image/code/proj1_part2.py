@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from helpers import vis_hybrid_image, load_image, save_image
 
 from student import my_imfilter, gen_hybrid_image
+import timeit
 
 # Before trying to construct hybrid images, it is suggested that you
 # implement my_imfilter in helpers.py and then debug it using proj1_part1.py
@@ -17,8 +18,8 @@ from student import my_imfilter, gen_hybrid_image
 
 # Setup
 # Read images and convert to floating point format
-image1 = load_image('../data/dog.bmp')
-image2 = load_image('../data/cat.bmp')
+image2 = load_image('../data/fish.bmp')
+image1 = load_image('../data/submarine.bmp')
 
 # display the dog and cat images
 plt.figure(figsize=(3, 3))
@@ -37,10 +38,11 @@ plt.imshow((image2*255).astype(np.uint8))
 # cutoff_frequency is the standard deviation, in pixels, of the Gaussian#
 # blur that will remove high frequencies. You may tune this per image pair
 # to achieve better results.
-cutoff_frequency = 7
+cutoff_frequency = 5
+A = timeit.default_timer()
 low_frequencies, high_frequencies, hybrid_image = gen_hybrid_image(
     image1, image2, cutoff_frequency)
-
+print(timeit.default_timer()-A)
 ## Visualize and save outputs ##
 plt.figure()
 plt.imshow((low_frequencies*255).astype(np.uint8))
