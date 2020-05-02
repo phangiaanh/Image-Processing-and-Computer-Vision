@@ -18,8 +18,8 @@ import timeit
 
 # Setup
 # Read images and convert to floating point format
-image2 = load_image('../data/fish.bmp')
-image1 = load_image('../data/submarine.bmp')
+image1 = load_image('../data/dog.bmp')
+image2 = load_image('../data/cat.bmp')
 
 # display the dog and cat images
 plt.figure(figsize=(3, 3))
@@ -38,11 +38,12 @@ plt.imshow((image2*255).astype(np.uint8))
 # cutoff_frequency is the standard deviation, in pixels, of the Gaussian#
 # blur that will remove high frequencies. You may tune this per image pair
 # to achieve better results.
-cutoff_frequency = 5
+cutoff_frequency = 7
 A = timeit.default_timer()
 low_frequencies, high_frequencies, hybrid_image = gen_hybrid_image(
     image1, image2, cutoff_frequency)
 print(timeit.default_timer()-A)
+print(hybrid_image)
 ## Visualize and save outputs ##
 plt.figure()
 plt.imshow((low_frequencies*255).astype(np.uint8))
