@@ -4,8 +4,9 @@ import math
 import matplotlib
 import matplotlib.pyplot as plt
 from helpers import vis_hybrid_image, load_image, save_image
+import cv2
 
-from student import my_imfilter, gen_hybrid_image
+from student import my_imfilter, gen_hybrid_image, my_imfilter_fft, transformDFT, convol2dFFT
 
 def fft(x):
     N = len(x)
@@ -68,5 +69,23 @@ X = np.array([[1,2,3,4,5],
 # print("AAAAA")
 # print(D)
 
-h = math.ceil(np.log2(X))
-print(h)
+Y = np.array([[[1,1,1,8],[2,2,2,2],[3,3,3,3]],
+            [[4,4,4,4],[5,5,5,-5],[6,6,6,6]],
+            [[7,7,7,7],[8,8,8,8],[9,9,9,39]]])
+
+Z = np.array([[1,2,3],[4,5,6],[7,8,9]])
+
+L = np.array([[8,2,3],[4,-5,6],[7,8,39]])
+
+
+image1 = load_image('../data/cat.bmp')
+kernel = np.array([[1,2,1],[0,0,0],[-1,-2,-1]])
+A = my_imfilter(image1, kernel)
+plt.imshow(A)
+plt.show()
+# A = my_imfilter_fft(X, Z)
+# print(A)
+# print(my_imfilter(X,Z))
+# A = np.array([1,2,3,4,5])
+# print(transformDFT(A))
+# print(np.fft.fft(A))

@@ -24,6 +24,80 @@ def convol2d(image, kernel):
 
     return filteredImage
 
+def transformFFT(inArray):
+    return np.fft.fft(inArray)
+    length = len(inArray)
+
+    if length <= 64: return transformDFT(inArray)
+    
+    evenArray = transformFFT(inArray[0::2])
+    oddArray = transformFFT(inArray[1::2])
+    expoCoeff = [exp( -2j * pi * k / length) * oddArray[k] for k in range(length // 2)]
+    return [evenArray[k] + expoCoeff[k] for k in range(length//2)] + [evenArray[k] - expoCoeff[k] for k in range(length//2)]
+
+def transformFFT2(inMatrix):
+    nrows, ncols = inMatrix.shape
+
+    fourierImage = np.zeros(inMatrix.shape, dtype = complex)
+    firstDegreeImage = np.zeros(inMatrix.shape, dtype=complex)
+
+    for u in range(nrows):
+        firstDegreeImage[u] = transformFFT(inMatrix[u,:])
+    
+    for v in range(ncols):
+        fourierImage[:,v] = transformFFT(firstDegreeImage[:,v])
+    
+    return fourierImage
+
+def transformIFFT2(inMatrix):
+    copyMatrix = inMatrix.copy()
+    nrows, ncols = inMatrix.shape
+
+    fourierImage = np.zeros(inMatrix.shape, dtype = complex)
+    firstDegreeImage = np.zeros(inMatrix.shape, dtype=complex)
+
+    for i in range(nrows):
+        copyMatrix[i, 1:] = copyMatrix[i, 1:][::-1]
+
+    for u in range(nrows):
+        firstDegreeImage[u] = transformFFT(copyMatrix[u,:])
+
+    for i in range(ncols):
+        firstDegreeImage[1:, i] = firstDegreeImage[1:, i][::-1]
+
+    for v in range(ncols):
+        fourierImage[:,v] = transformFFT(firstDegreeImage[:,v])
+
+    return fourierImage
+
+def convol2dFFT(image, kernel):
+    nrows, ncols = (image.shape)
+
+    padrows, padcols = (int(2**np.ceil(np.log2(nrows) + 1)), int(2**np.ceil(np.log2(ncols) + 1)))
+
+    padimage = np.pad(image, ((0, padrows - nrows), (0, padcols - ncols)), mode = 'constant')
+    padkernel = np.pad(kernel, ((0, padrows - kernel.shape[0]), (0, padcols - kernel.shape[1])), mode = 'constant')
+
+    fourierImage = transformFFT2(padimage)
+    fourierKernel = transformFFT2(padkernel)
+    
+    result = transformIFFT2(fourierImage * fourierKernel).real[:, :] / (padrows * padcols)
+
+    return result[kernel.shape[0] // 2 : kernel.shape[0] // 2 + nrows, kernel.shape[1] // 2 : kernel.shape[1] // 2 + ncols]
+
+def transformDFT(spatialImage, inverse = False):
+    m = len(spatialImage)
+
+    xArray = np.array([i for i in range(0, m)])
+    xExpoKernel = -(np.outer(xArray, xArray) * 1j * 2 * pi) / m
+    xKernel = exp(xExpoKernel)
+
+    # return xKernel
+
+    fourierImage = np.array([(spatialImage * xKernel[i]).sum() for i in range(m)], dtype=complex)
+    
+    return fourierImage
+
 def my_imfilter(image, kernel):
     """
     Your function should meet the requirements laid out on the project webpage.
@@ -49,29 +123,20 @@ def my_imfilter(image, kernel):
     if len(image.shape) == 2:
         filteredImage = convol2d(image, kernel)
     else:
-        trimShape = np.array([image.shape[0], image.shape[1]])
+        reverseShape = np.array((image.shape[2], image.shape[0], image.shape[1]))
 
-        redImage = np.zeros(trimShape)
-        blueImage = np.zeros(trimShape)
-        greenImage = np.zeros(trimShape)
+        filteredImageArray = np.zeros(reverseShape)
 
-        for i in range(0, image.shape[0]):
-            for j in range(0, image.shape[1]):
-                redImage[i, j] = image[i, j, 0]
-                greenImage[i, j] = image[i, j, 1]
-                blueImage[i, j] = image[i, j, 2]
-
-        filteredRedImage = convol2d(redImage, kernel)
-        filteredGreenImage = convol2d(greenImage, kernel)
-        filteredBlueImage = convol2d(blueImage, kernel)
+        for i in range(image.shape[2]):
+            filteredImageArray[i] = convol2d(image[:, :, i], kernel)
 
         filteredImage = np.zeros(image.shape)
         
         for i in range(0, image.shape[0]):
             for j in range(0, image.shape[1]):
-                filteredImage[i, j] = [filteredRedImage[i, j], filteredGreenImage[i, j], filteredBlueImage[i, j]]
+                filteredImage[i, j] = [item[i, j] for item in filteredImageArray]
 
-    return filteredImage
+    return np.clip(filteredImage, a_min = 0, a_max = 1)
     ################
 
 """
@@ -90,14 +155,32 @@ def my_imfilter_fft(image, kernel):
     Errors if:
     - filter/kernel has any even dimension -> raise an Exception with a suitable error message.
     """
-    filtered_image = np.zeros(image.shape)
-
     ##################
     # Your code here #
-    print('my_imfilter_fft function in student.py is not implemented')
-    ##################
+    dimensionProduct = kernel.shape[0] * kernel.shape[1]
 
-    return filtered_image
+    # Check if any of the dimensions is even
+    if (dimensionProduct % 2) == 0:
+        raise Exception('All the dimensions must be odd!')
+
+    if len(image.shape) == 2:
+        filteredImage = convol2dFFT(image, kernel)
+    else:
+        reverseShape = np.array((image.shape[2], image.shape[0], image.shape[1]))
+
+        filteredImageArray = np.zeros(reverseShape)
+
+        for i in range(image.shape[2]):
+            filteredImageArray[i] = convol2dFFT(image[:, :, i], kernel)
+
+        filteredImage = np.zeros(image.shape)
+        
+        for i in range(0, image.shape[0]):
+            for j in range(0, image.shape[1]):
+                filteredImage[i, j] = [item[i, j] for item in filteredImageArray]
+
+    return np.clip(filteredImage, a_min = 0, a_max = 1)
+    ################
 
 
 def gen_hybrid_image(image1, image2, cutoff_frequency):
@@ -128,16 +211,16 @@ def gen_hybrid_image(image1, image2, cutoff_frequency):
     kernel1 = np.array([[item] for item in probs])
 
     # Your code here:
-    low_frequencies_inter = my_imfilter(image1, kernel1)
-    low_frequencies = my_imfilter(low_frequencies_inter, kernel2) # Replace with your implementation
+    low_frequencies_inter = my_imfilter_fft(image1, kernel1)
+    low_frequencies = my_imfilter_fft(low_frequencies_inter, kernel2) # Replace with your implementation
 
 
     # (2) Remove the low frequencies from image2. The easiest way to do this is to
     #     subtract a blurred version of image2 from the original version of image2.
     #     This will give you an image centered at zero with negative values.
     # Your code here #
-    low_frequencies_inter_im2 = my_imfilter(image2, kernel1)
-    low_frequencies_im2 = my_imfilter(low_frequencies_inter_im2, kernel2) # Replace with your implementation
+    low_frequencies_inter_im2 = my_imfilter_fft(image2, kernel1)
+    low_frequencies_im2 = my_imfilter_fft(low_frequencies_inter_im2, kernel2) # Replace with your implementation
     high_frequencies = image2 - low_frequencies_im2
 
 
