@@ -1,7 +1,7 @@
 
 from skimage.feature import plot_matches
 import matplotlib
-#matplotlib.use("TkAgg")
+# matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -32,13 +32,13 @@ def show_correspondences(imgA, imgB, X1, Y1, X2, Y2, matches, good_matches, numb
 	plot_matches(ax, imgA, imgB, kp1, kp2, matches[good_matches], matches_color='springgreen')
 
 	fig = plt.gcf()
-	plt.show()
 
 	if filename:
 		if not os.path.isdir('../results'):
 			os.mkdir('../results')
 		fig.savefig('../results/' + filename)
-
+		
+	plt.show()
 	return
 
 def zip_x_y(x, y):

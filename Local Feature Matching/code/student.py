@@ -3,6 +3,49 @@ import matplotlib.pyplot as plt
 from skimage import filters, feature, img_as_int
 from skimage.measure import regionprops
 
+def gaussianFilter(size, sigma):
+    x, y = np.mgrid[-size // 2 + 1 : size // 2 + 1, -size // 2 + 1 : size // 2 + 1]
+
+    gaussianKernel = np.exp(-((x**2 + y**2) / (2.0 * (sigma ** 2)))) / (2.0 * np.pi * (sigma ** 2))
+     
+    return gaussianKernel / gaussianKernel.sum()
+
+def sobelFilter():
+    return np.array([1, 2, 1],
+                    [0, 0, 0],
+                    [-1, -2, -1])
+
+def getDistanceMatrix(features1, features2, featureNumber1, featureNumber2):
+    expandedFeatures1 = np.repeat(features1, repeats = featureNumber2, axis = 0)
+    expandedFeatures2 = np.tile(features2, (featureNumber1, 1))
+
+    subMatrix = expandedFeatures1 - expandedFeatures2
+    squareMatrix = subMatrix ** 2
+    return np.sqrt(squareMatrix.sum(axis = 1).reshape((featureNumber1, featureNumber2)))
+
+def getNormalizedPatches(image, x, y, featureWidth = 16):
+    rowNumber = image.shape[0]
+    colNumber = image.shape[1]
+    features = np.zeros((len(x),256))
+    offset = np.uint16(featureWidth / 2)
+    # TODO: Your implementation here! See block comments and the project webpage for instructions
+    for i in range(len(x)):
+        xCenter = np.uint16(x[i])
+        yCenter = np.uint16(y[i]) 
+        if xCenter >= offset and xCenter <= rowNumber - 2 * offset and yCenter >= offset and yCenter <= colNumber - 2 * offset:
+            leftBound = np.uint16(x[i]) - offset
+            rightBound = np.uint16(x[i]) + offset
+            topBound = np.uint16(y[i]) - offset
+            bottomBound = np.uint16(y[i]) + offset
+            patches = np.array(image[topBound : bottomBound, leftBound : rightBound])
+            patches = np.reshape(patches, (1, featureWidth ** 2))
+            patches = patches / np.linalg.norm(patches)
+            features[i, :] = patches
+        else:
+            patches = np.zeros((16, 16))
+            patches = np.reshape(patches, (1, 256))
+            features[i, :] = patches
+    return features
 
 def get_interest_points(image, feature_width):
     '''
@@ -115,13 +158,8 @@ def get_features(image, x, y, feature_width):
             dimensionality is 128)
 
     '''
-
     # TODO: Your implementation here! See block comments and the project webpage for instructions
-
-    # This is a placeholder - replace this with your features!
-    features = np.zeros((1,128))
-
-    return features
+    return getNormalizedPatches(image, x, y, feature_width)
 
 
 def match_features(im1_features, im2_features):
@@ -156,11 +194,23 @@ def match_features(im1_features, im2_features):
     '''
 
     # TODO: Your implementation here! See block comments and the project webpage for instructions
+    featureNumber1 = im1_features.shape[0]
+    featureNumber2 = im2_features.shape[0]
+    
+    distanceMatrix = getDistanceMatrix(im1_features, im2_features, featureNumber1, featureNumber2)
 
-    # These are placeholders - replace with your matches and confidences!
+    indexSortedMatrix = np.zeros((featureNumber1, featureNumber2))
 
-    matches = np.zeros((1,2))
-    confidences = np.zeros(1)
+    indexSortedMatrix = np.argsort(distanceMatrix)
+    print(indexSortedMatrix)
+    nearestNeighborIndex = indexSortedMatrix[:, 0]
+    secondNearestNeighborIndex = indexSortedMatrix[:, 1]
 
+    nearestNeighbor = list(map(lambda x, y: x[y], distanceMatrix, nearestNeighborIndex))
+    secondNearestNeighbor = list(map(lambda x, y: x[y], distanceMatrix, secondNearestNeighborIndex))
+
+    confidences = np.array(list(map(lambda x, y: y / x if x != 0 else -1, nearestNeighbor, secondNearestNeighbor)))
+
+    matches = np.array([[i, nearestNeighborIndex[i]] for i in range(featureNumber1)])
 
     return matches, confidences
