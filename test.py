@@ -1,55 +1,50 @@
 import numpy as np
 from cmath import sqrt
 from scipy.spatial.distance import cdist
-import scipy.ndimage.filters as ft 
+from scipy.signal import convolve2d
 
-def gaussianFilter(size, sigma):
+def getGaussianFilter(size, sigma):
     x, y = np.mgrid[-size // 2 + 1 : size // 2 + 1, -size // 2 + 1 : size // 2 + 1]
 
     gaussianKernel = np.exp(-((x**2 + y**2) / (2.0 * (sigma ** 2)))) / (2.0 * np.pi * (sigma ** 2))
      
     return gaussianKernel / gaussianKernel.sum()
 
-def getDistanceMatrix(features1, features2, featureNumber1, featureNumber2):
-    expandedFeatures1 = np.repeat(features1, repeats = featureNumber2, axis = 0)
-    expandedFeatures2 = np.tile(features2, (featureNumber1, 1))
+def getSobelFilter():
+    return np.array([[1, 2, 1],
+                    [0, 0, 0],
+                    [-1, -2, -1]])
 
-    subMatrix = expandedFeatures1 - expandedFeatures2
-    squareMatrix = subMatrix ** 2
-    return np.sqrt(squareMatrix.sum(axis = 1).reshape((featureNumber1, featureNumber2)))
+def getScaleInvariantFeature(image, x, y, featureWidth = 16):
+    rowNumber = image.shape[0]
+    colNumber = image.shape[1]
+    # features = np.zeros((len(x), 128))
+    offset = np.uint16(featureWidth / 2)
+    # cellWidth = np.uint16(featureWidth / 4)
 
-def match_features(im1_features, im2_features):
-    featureNumber1 = im1_features.shape[0]
-    featureNumber2 = im2_features.shape[0]
+    sobelFilter = getSobelFilter()
+    gaussianFilter = getGaussianFilter(int(offset), int(offset))
+    sobelFilterOctave = np.zeros((8, sobelFilter.shape[0], sobelFilter.shape[1]))
+    imageOctave = np.zeros((8, rowNumber, colNumber))
+
+    for i in range(8):
+        sobelFilter = np.array([[sobelFilter[0, 1], sobelFilter[0, 2], sobelFilter[1, 2]],
+                [sobelFilter[0, 0], sobelFilter[1, 1], sobelFilter[2, 2]],
+                [sobelFilter[1, 0], sobelFilter[2, 0], sobelFilter[2, 1]]])
+
+        sobelFilterOctave[i, :] = sobelFilter
+
+    for i in range(8):
+        imageOctave[i, :] = convolve2d(image, sobelFilterOctave[i], mode = 'same')
+
+    imageOctave = [convolve2d(x, gaussianFilter, mode = 'same') for x in imageOctave]
+    # for i in range(len(x)):
+
     
-    distanceMatrix = getDistanceMatrix(im1_features, im2_features, featureNumber1, featureNumber2)
+    return imageOctave
 
-    indexSortedMatrix = np.zeros((featureNumber1, featureNumber2))
-
-    indexSortedMatrix = np.argsort(distanceMatrix)
-
-    nearestNeighborIndex = indexSortedMatrix[:, 0]
-    secondNearestNeighborIndex = indexSortedMatrix[:, 1]
-
-    nearestNeighbor = list(map(lambda x, y: x[y], distanceMatrix, nearestNeighborIndex))
-    secondNearestNeighbor = list(map(lambda x, y: x[y], distanceMatrix, secondNearestNeighborIndex))
-
-    confidences = list(map(lambda x, y: y / x if x != 0 else -1, nearestNeighbor, secondNearestNeighbor))
-
-    matches = [[i, nearestNeighborIndex[i]] for i in range(featureNumber1)]
-
-    return indexSortedMatrix, secondNearestNeighborIndex
-    return matches, confidences
-
-A = np.array([[1,2,3,4,5,6,7,8],
-[3,2,3,2,3,2,3,2]])
-B = np.array([[1,1,1,1,1,1,1,1],
-[4,4,4,4,7,7,7,7],
-[3,4,5,6,6,5,4,3]])
-
-C = np.array([1,2,3,5,4,7,6])
-X = np.random.random((3,3))
-Y = np.random.random((5,3))
-# print(np.allclose(getDistanceMatrix(X,Y,X.shape[0],Y.shape[0]), cdist(X,Y)))
-print(getDistanceMatrix(X,Y,X.shape[0],Y.shape[0]))
-print(match_features(X, Y))
+A = np.array(range(256)).reshape((16, 16))
+B = np.array([1,2,3,4,5,6,7,8])
+C = [[1,2,3,4],[4,4,4,4]]
+print(np.array(C))
+print(B[1::2])

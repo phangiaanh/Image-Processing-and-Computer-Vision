@@ -159,10 +159,10 @@ def main():
     # !!! You will need to implement get_features. !!!
 
     print("Getting features...")
-    print(x1)
+    # print(x1)
     image1_features = student.get_features(image1, x1, y1, feature_width)
     image2_features = student.get_features(image2, x2, y2, feature_width)
-
+    print(image1_features)
     print("Done!")
 
     # 4) Match features. Szeliski 4.1.3

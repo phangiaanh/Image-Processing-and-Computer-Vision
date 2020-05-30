@@ -4,6 +4,7 @@ import math
 import timeit
 from scipy.signal import convolve2d, convolve
 
+
 def convol2d(image, kernel):
     flipKernel = kernel.copy()
     for i in range(len(kernel)):
@@ -146,7 +147,7 @@ def convol(image, kernel):
 
 
 
-print(convol(A, I))
+print(convolve2d(A, I, mode='same'))
 print("================")
 # A = np.pad(A, ((0,3),(0,3)), mode='constant')
 # I = np.pad(I, ((0,5),(0,5)), mode='constant')

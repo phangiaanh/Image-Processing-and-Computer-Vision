@@ -2,18 +2,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage import filters, feature, img_as_int
 from skimage.measure import regionprops
+from scipy.signal import convolve2d
 
-def gaussianFilter(size, sigma):
+def getGaussianFilter(size, sigma):
     x, y = np.mgrid[-size // 2 + 1 : size // 2 + 1, -size // 2 + 1 : size // 2 + 1]
 
     gaussianKernel = np.exp(-((x**2 + y**2) / (2.0 * (sigma ** 2)))) / (2.0 * np.pi * (sigma ** 2))
      
     return gaussianKernel / gaussianKernel.sum()
 
-def sobelFilter():
-    return np.array([1, 2, 1],
+def getSobelFilter():
+    return np.array([[1, 2, 1],
                     [0, 0, 0],
-                    [-1, -2, -1])
+                    [-1, -2, -1]])
 
 def getDistanceMatrix(features1, features2, featureNumber1, featureNumber2):
     expandedFeatures1 = np.repeat(features1, repeats = featureNumber2, axis = 0)
@@ -26,9 +27,9 @@ def getDistanceMatrix(features1, features2, featureNumber1, featureNumber2):
 def getNormalizedPatches(image, x, y, featureWidth = 16):
     rowNumber = image.shape[0]
     colNumber = image.shape[1]
-    features = np.zeros((len(x),256))
+    features = np.zeros((len(x), 256))
     offset = np.uint16(featureWidth / 2)
-    # TODO: Your implementation here! See block comments and the project webpage for instructions
+    
     for i in range(len(x)):
         xCenter = np.uint16(x[i])
         yCenter = np.uint16(y[i]) 
@@ -41,10 +42,51 @@ def getNormalizedPatches(image, x, y, featureWidth = 16):
             patches = np.reshape(patches, (1, featureWidth ** 2))
             patches = patches / np.linalg.norm(patches)
             features[i, :] = patches
-        else:
-            patches = np.zeros((16, 16))
-            patches = np.reshape(patches, (1, 256))
-            features[i, :] = patches
+    return features
+
+def getScaleInvariantFeature(image, x, y, featureWidth = 16):
+    rowNumber = image.shape[0]
+    colNumber = image.shape[1]
+    offset = np.uint16(featureWidth / 2)
+
+    sobelFilter = getSobelFilter()
+    gaussianFilter = getGaussianFilter(int(offset), int(offset))
+    sobelFilterOctave = np.zeros((8, sobelFilter.shape[0], sobelFilter.shape[1]))
+    imageOctave = np.zeros((8, rowNumber, colNumber))
+
+    for i in range(8):
+        sobelFilter = np.array([[sobelFilter[0, 1], sobelFilter[0, 2], sobelFilter[1, 2]],
+                [sobelFilter[0, 0], sobelFilter[1, 1], sobelFilter[2, 2]],
+                [sobelFilter[1, 0], sobelFilter[2, 0], sobelFilter[2, 1]]])
+
+        sobelFilterOctave[i, :] = sobelFilter
+
+    for i in range(8):
+        imageOctave[i, :] = convolve2d(image, sobelFilterOctave[i], mode = 'same')
+
+    imageOctave = [convolve2d(x, gaussianFilter, mode = 'same') for x in imageOctave]
+    
+    features = np.ones((len(x), 128))
+    for i in range(len(x)):
+        xCenter = np.uint16(x[i])
+        yCenter = np.uint16(y[i]) 
+        if xCenter >= offset and xCenter <= rowNumber - 2 * offset and yCenter >= offset and yCenter <= colNumber - 2 * offset:
+            leftBound = np.uint16(x[i]) - offset
+            rightBound = np.uint16(x[i]) + offset
+            topBound = np.uint16(y[i]) - offset
+            bottomBound = np.uint16(y[i]) + offset
+
+            histogram = np.zeros((1, 128))
+            for j in range(8):
+                layerImage = np.array(imageOctave[j])
+                featureWindow = np.array(layerImage[topBound : bottomBound, leftBound : rightBound])
+                featureWindow = np.split(featureWindow, 4, axis=0)
+                featureWindow = np.array([np.split(x, 4, axis = 1) for x in featureWindow])
+                histogramPart = (np.array([[y.sum() for y in x] for x in featureWindow])).flatten()
+                for k in range(16):
+                    histogram[0, j + 8 * k] = histogramPart[k]
+            histogram = histogram / np.linalg.norm(histogram)
+            features[i, :] = histogram
     return features
 
 def get_interest_points(image, feature_width):
@@ -159,7 +201,8 @@ def get_features(image, x, y, feature_width):
 
     '''
     # TODO: Your implementation here! See block comments and the project webpage for instructions
-    return getNormalizedPatches(image, x, y, feature_width)
+    # return getNormalizedPatches(image, x, y, feature_width)
+    return getScaleInvariantFeature(image, x, y, feature_width)
 
 
 def match_features(im1_features, im2_features):
