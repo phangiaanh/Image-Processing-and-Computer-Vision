@@ -2,6 +2,7 @@ import numpy as np
 from cmath import sqrt
 from scipy.spatial.distance import cdist
 from scipy.signal import convolve2d
+from skimage.feature import peak_local_max
 
 def getGaussianFilter(size, sigma):
     x, y = np.mgrid[-size // 2 + 1 : size // 2 + 1, -size // 2 + 1 : size // 2 + 1]
@@ -15,36 +16,45 @@ def getSobelFilter():
                     [0, 0, 0],
                     [-1, -2, -1]])
 
-def getScaleInvariantFeature(image, x, y, featureWidth = 16):
-    rowNumber = image.shape[0]
-    colNumber = image.shape[1]
-    # features = np.zeros((len(x), 128))
-    offset = np.uint16(featureWidth / 2)
-    # cellWidth = np.uint16(featureWidth / 4)
+def get_interest_points(image, feature_width):
+    smoothSmallFilter = getGaussianFilter(3, 1)
+    smoothLargeFilter = getGaussianFilter(9, 2)
 
-    sobelFilter = getSobelFilter()
-    gaussianFilter = getGaussianFilter(int(offset), int(offset))
-    sobelFilterOctave = np.zeros((8, sobelFilter.shape[0], sobelFilter.shape[1]))
-    imageOctave = np.zeros((8, rowNumber, colNumber))
+    smoothImage = convolve2d(image, smoothSmallFilter, mode = 'same')
+    derivativeXImage = convolve2d(smoothImage, getSobelFilter(axis = 0), mode = 'same')
+    derivativeYImage = convolve2d(smoothImage, getSobelFilter(axis = 1), mode = 'same')
 
-    for i in range(8):
-        sobelFilter = np.array([[sobelFilter[0, 1], sobelFilter[0, 2], sobelFilter[1, 2]],
-                [sobelFilter[0, 0], sobelFilter[1, 1], sobelFilter[2, 2]],
-                [sobelFilter[1, 0], sobelFilter[2, 0], sobelFilter[2, 1]]])
+    derivativeXXImage = derivativeXImage * derivativeXImage
+    derivativeYYImage = derivativeYImage * derivativeYImage
+    derivativeXYImage = derivativeXImage * derivativeYImage
 
-        sobelFilterOctave[i, :] = sobelFilter
+    derivativeXXImage = convolve2d(derivativeXXImage, smoothLargeFilter, mode = 'same')
+    derivativeYYImage = convolve2d(derivativeYYImage, smoothLargeFilter, mode = 'same')
+    derivativeXYImage = convolve2d(derivativeXYImage, smoothLargeFilter, mode = 'same')
 
-    for i in range(8):
-        imageOctave[i, :] = convolve2d(image, sobelFilterOctave[i], mode = 'same')
+    # Szeliski 4.9
+    lambdaValue = 0.06
 
-    imageOctave = [convolve2d(x, gaussianFilter, mode = 'same') for x in imageOctave]
-    # for i in range(len(x)):
-
+    harrisMatrix = derivativeXXImage * derivativeYYImage - derivativeXYImage ** 2 - lambdaValue * (derivativeXXImage + derivativeYYImage) ** 2
     
-    return imageOctave
+    suppressMatrix = np.zeros(image.shape)
+    suppressMatrix[feature_width : image.shape[0] - feature_width, feature_width : image.shape[1] - feature_width] = 1
 
-A = np.array(range(256)).reshape((16, 16))
-B = np.array([1,2,3,4,5,6,7,8])
-C = [[1,2,3,4],[4,4,4,4]]
-print(np.array(C))
-print(B[1::2])
+    localMaxima = []
+    suppressHarrisMatrix = harrisMatrix * suppressMatrix
+    for i in range(feature_width, image.shape[0] - feature_width):
+        for j in range(feature_width, image.shape[1] - feature_width):
+            localMatrix = suppressHarrisMatrix[i : i + feature_width, j : j + feature_width]
+            localIndex = np.argmax(localMatrix)
+            A = suppressHarrisMatrix[localIndex // feature_width + i, localIndex % feature_width + j] 
+            B = suppressHarrisMatrix[i, j]
+            if  A >= 0.05:
+                localMaxima.extend([[localIndex // feature_width + i, localIndex % feature_width + j]])
+
+    localMaxima = np.unique(localMaxima, axis = 0)
+    x = [item[0] for item in localMaxima]
+    y = [item[1] for item in localMaxima]
+    xs = np.array(x)
+    ys = np.array(y)
+
+    return ys, xs

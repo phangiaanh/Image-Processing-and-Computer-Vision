@@ -123,7 +123,7 @@ def main():
     # Bilinear rescaling
     image1 = np.float32(rescale(image1, scale_factor))
     image2 = np.float32(rescale(image2, scale_factor))
-
+    print(image1.shape)
     # width and height of each local feature, in pixels
     feature_width = 16
 
@@ -132,17 +132,17 @@ def main():
 
     print("Getting interest points...")
 
-    # (x1, y1) = student.get_interest_points(image1,feature_width)
-    # (x2, y2) = student.get_interest_points(image2,feature_width)
-
+    (x1, y1) = student.get_interest_points(image1,feature_width)
+    (x2, y2) = student.get_interest_points(image2,feature_width)
+    print(len(x1))
     # For development and debugging get_features and match_features, you will likely
     # want to use the ta ground truth points, you can comment out the precedeing two
     # lines and uncomment the following line to do this. Note that the ground truth
     # points for mt. rushmore will not produce good results, so you'll have to use
     # your own function for that image pair.
 
-    (x1, y1, x2, y2) = cheat_interest_points(eval_file, scale_factor)
-
+    # (x1, y1, x2, y2) = cheat_interest_points(eval_file, scale_factor)
+    # print(len(x1))
     # if you want to view your corners uncomment these next lines!
 
     plt.imshow(image1, cmap="gray")
@@ -159,10 +159,8 @@ def main():
     # !!! You will need to implement get_features. !!!
 
     print("Getting features...")
-    # print(x1)
     image1_features = student.get_features(image1, x1, y1, feature_width)
     image2_features = student.get_features(image2, x2, y2, feature_width)
-    print(image1_features)
     print("Done!")
 
     # 4) Match features. Szeliski 4.1.3

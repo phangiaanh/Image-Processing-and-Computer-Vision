@@ -2,7 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage import filters, feature, img_as_int
 from skimage.measure import regionprops
+from skimage.feature import peak_local_max
 from scipy.signal import convolve2d
+from scipy.spatial.distance import cdist
 
 def getGaussianFilter(size, sigma):
     x, y = np.mgrid[-size // 2 + 1 : size // 2 + 1, -size // 2 + 1 : size // 2 + 1]
@@ -11,18 +13,23 @@ def getGaussianFilter(size, sigma):
      
     return gaussianKernel / gaussianKernel.sum()
 
-def getSobelFilter():
-    return np.array([[1, 2, 1],
-                    [0, 0, 0],
-                    [-1, -2, -1]])
+def getSobelFilter(axis = 1):
+    if axis == 0:
+        return np.array([[1, 0, -1],
+                        [2, 0, -2],
+                        [1, 0, -1]])
+    else:
+        return np.array([[1, 2, 1],
+                        [0, 0, 0],
+                        [-1, -2, -1]])
 
 def getDistanceMatrix(features1, features2, featureNumber1, featureNumber2):
     expandedFeatures1 = np.repeat(features1, repeats = featureNumber2, axis = 0)
     expandedFeatures2 = np.tile(features2, (featureNumber1, 1))
 
-    subMatrix = expandedFeatures1 - expandedFeatures2
-    squareMatrix = subMatrix ** 2
-    return np.sqrt(squareMatrix.sum(axis = 1).reshape((featureNumber1, featureNumber2)))
+    expandedFeatures1 = expandedFeatures1 - expandedFeatures2
+    expandedFeatures1 = expandedFeatures1 ** 2
+    return np.sqrt(expandedFeatures1.sum(axis = 1).reshape((featureNumber1, featureNumber2)))
 
 def getNormalizedPatches(image, x, y, featureWidth = 16):
     rowNumber = image.shape[0]
@@ -131,12 +138,47 @@ def get_interest_points(image, feature_width):
     '''
 
     # TODO: Your implementation here! See block comments and the project webpage for instructions
+    smoothSmallFilter = getGaussianFilter(3, 1)
+    smoothLargeFilter = getGaussianFilter(9, 2)
 
-    # These are placeholders - replace with the coordinates of your interest points!
-    xs = np.zeros(1)
-    ys = np.zeros(1)
+    smoothImage = convolve2d(image, smoothSmallFilter, mode = 'same')
+    derivativeXImage = convolve2d(smoothImage, getSobelFilter(axis = 0), mode = 'same')
+    derivativeYImage = convolve2d(smoothImage, getSobelFilter(axis = 1), mode = 'same')
 
-    return xs, ys
+    derivativeXXImage = derivativeXImage * derivativeXImage
+    derivativeYYImage = derivativeYImage * derivativeYImage
+    derivativeXYImage = derivativeXImage * derivativeYImage
+
+    derivativeXXImage = convolve2d(derivativeXXImage, smoothLargeFilter, mode = 'same')
+    derivativeYYImage = convolve2d(derivativeYYImage, smoothLargeFilter, mode = 'same')
+    derivativeXYImage = convolve2d(derivativeXYImage, smoothLargeFilter, mode = 'same')
+
+    # Szeliski 4.9
+    lambdaValue = 0.06
+
+    harrisMatrix = (derivativeXXImage * derivativeYYImage - derivativeXYImage ** 2) - lambdaValue * (derivativeXXImage + derivativeYYImage) ** 2
+    
+    suppressMatrix = np.zeros(image.shape)
+    suppressMatrix[feature_width : image.shape[0] - feature_width, feature_width : image.shape[1] - feature_width] = 1
+
+    localMaxima = []
+    suppressHarrisMatrix = harrisMatrix * suppressMatrix
+    for i in range(feature_width, image.shape[0] - feature_width):
+        for j in range(feature_width, image.shape[1] - feature_width):
+            localMatrix = suppressHarrisMatrix[i : i + feature_width, j : j + feature_width]
+            localIndex = np.argmax(localMatrix)
+            A = suppressHarrisMatrix[localIndex // feature_width + i, localIndex % feature_width + j] 
+            B = suppressHarrisMatrix[i, j]
+            if  A == B and A >= 0.1:
+                localMaxima.extend([[localIndex // feature_width + i, localIndex % feature_width + j]])
+
+    localMaxima = np.unique(localMaxima, axis = 0)
+    x = [item[0] for item in localMaxima]
+    y = [item[1] for item in localMaxima]
+    xs = np.array(x)
+    ys = np.array(y)
+
+    return ys, xs
 
 
 def get_features(image, x, y, feature_width):
@@ -241,11 +283,12 @@ def match_features(im1_features, im2_features):
     featureNumber2 = im2_features.shape[0]
     
     distanceMatrix = getDistanceMatrix(im1_features, im2_features, featureNumber1, featureNumber2)
+    # distanceMatrix = cdist(im1_features, im2_features, 'euclidean')
 
     indexSortedMatrix = np.zeros((featureNumber1, featureNumber2))
 
     indexSortedMatrix = np.argsort(distanceMatrix)
-    print(indexSortedMatrix)
+    
     nearestNeighborIndex = indexSortedMatrix[:, 0]
     secondNearestNeighborIndex = indexSortedMatrix[:, 1]
 
