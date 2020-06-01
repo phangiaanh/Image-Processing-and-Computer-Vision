@@ -25,11 +25,15 @@ def getSobelFilter(axis = 1):
 
 def getDistanceMatrix(features1, features2, featureNumber1, featureNumber2):
     expandedFeatures1 = np.repeat(features1, repeats = featureNumber2, axis = 0)
-    expandedFeatures2 = np.tile(features2, (featureNumber1, 1))
+    expandedFeatures1 = expandedFeatures1 - np.tile(features2, (featureNumber1, 1))
 
-    expandedFeatures1 = expandedFeatures1 - expandedFeatures2
     expandedFeatures1 = expandedFeatures1 ** 2
     return np.sqrt(expandedFeatures1.sum(axis = 1).reshape((featureNumber1, featureNumber2)))
+
+def getDistanceArray(features1, features2):
+    temp = features2 -features1
+    temp = temp ** 2
+    return np.sqrt(np.sum(temp, axis=1))
 
 def getNormalizedPatches(image, x, y, featureWidth = 16):
     rowNumber = image.shape[0]
@@ -55,6 +59,7 @@ def getScaleInvariantFeature(image, x, y, featureWidth = 16):
     rowNumber = image.shape[0]
     colNumber = image.shape[1]
     offset = np.uint16(featureWidth / 2)
+    cell = np.uint16(featureWidth / 4)
 
     sobelFilter = getSobelFilter()
     gaussianFilter = getGaussianFilter(int(offset), int(offset))
@@ -69,11 +74,11 @@ def getScaleInvariantFeature(image, x, y, featureWidth = 16):
         sobelFilterOctave[i, :] = sobelFilter
 
     for i in range(8):
-        imageOctave[i, :] = convolve2d(image, sobelFilterOctave[i], mode = 'same')
+        imageOctave[i, :] = np.array(convolve2d(image, sobelFilterOctave[i], mode = 'same'))
 
-    imageOctave = [convolve2d(x, gaussianFilter, mode = 'same') for x in imageOctave]
-    
-    features = np.ones((len(x), 128))
+    print("AAAAAAA")
+    imageOctave = np.array([convolve2d(x, gaussianFilter, mode = 'same') for x in imageOctave])
+    features = np.ones((len(x), 128), dtype = 'float32')
     for i in range(len(x)):
         xCenter = np.uint16(x[i])
         yCenter = np.uint16(y[i]) 
@@ -82,16 +87,26 @@ def getScaleInvariantFeature(image, x, y, featureWidth = 16):
             rightBound = np.uint16(x[i]) + offset
             topBound = np.uint16(y[i]) - offset
             bottomBound = np.uint16(y[i]) + offset
-
-            histogram = np.zeros((1, 128))
-            for j in range(8):
-                layerImage = np.array(imageOctave[j])
-                featureWindow = np.array(layerImage[topBound : bottomBound, leftBound : rightBound])
-                featureWindow = np.split(featureWindow, 4, axis=0)
-                featureWindow = np.array([np.split(x, 4, axis = 1) for x in featureWindow])
-                histogramPart = (np.array([[y.sum() for y in x] for x in featureWindow])).flatten()
-                for k in range(16):
-                    histogram[0, j + 8 * k] = histogramPart[k]
+            featureWindow = np.array(imageOctave[:, topBound : bottomBound, leftBound : rightBound])
+            histogram = np.array([])
+            # for j in range(8):
+            #     layerImage = np.array(imageOctave[j])
+            #     featureWindow = np.array(layerImage[topBound : bottomBound, leftBound : rightBound])
+            #     # featureWindow = np.split(featureWindow, 4, axis=0)
+            #     # featureWindow = np.array([np.split(x, 4, axis = 1) for x in featureWindow])
+            #     # histogramPart = (np.array([[y.sum() for y in x] for x in featureWindow])).flatten()
+            #     # for k in range(16):
+            #     #     histogram[0, j + 8 * k] = histogramPart[k]
+            #     c = j
+            #     for m in range(4):
+            #         for n in range(4):
+            #             cellWindow = featureWindow[4*m : 4*m + cell, 4*n : 4*n + cell]
+            #             histogram[0, c] = np.sum(cellWindow)
+            #             c = c + 8
+            for m in range(4):
+                for n in range(4):
+                    cellWindow = np.sum(np.sum(featureWindow[:, 4*m : 4 *m + cell, 4*n:4*n+cell], axis = 1), axis = 1).flatten()
+                    histogram = np.concatenate((histogram, cellWindow), axis = None)
             histogram = histogram / np.linalg.norm(histogram)
             features[i, :] = histogram
     return features
@@ -138,12 +153,12 @@ def get_interest_points(image, feature_width):
     '''
 
     # TODO: Your implementation here! See block comments and the project webpage for instructions
-    smoothSmallFilter = getGaussianFilter(3, 1)
-    smoothLargeFilter = getGaussianFilter(9, 2)
+    # smoothSmallFilter = getGaussianFilter(3, 1)
+    smoothLargeFilter = getGaussianFilter(6, 1)
 
-    smoothImage = convolve2d(image, smoothSmallFilter, mode = 'same')
-    derivativeXImage = convolve2d(smoothImage, getSobelFilter(axis = 0), mode = 'same')
-    derivativeYImage = convolve2d(smoothImage, getSobelFilter(axis = 1), mode = 'same')
+    # smoothImage = convolve2d(image, smoothSmallFilter, mode = 'same')
+    derivativeXImage = convolve2d(image, getSobelFilter(axis = 0), mode = 'same')
+    derivativeYImage = convolve2d(image, getSobelFilter(axis = 1), mode = 'same')
 
     derivativeXXImage = derivativeXImage * derivativeXImage
     derivativeYYImage = derivativeYImage * derivativeYImage
@@ -161,23 +176,22 @@ def get_interest_points(image, feature_width):
     suppressMatrix = np.zeros(image.shape)
     suppressMatrix[feature_width : image.shape[0] - feature_width, feature_width : image.shape[1] - feature_width] = 1
 
-    localMaxima = []
-    suppressHarrisMatrix = harrisMatrix * suppressMatrix
+    localMaxima = np.zeros(image.shape)
+    suppressHarrisMatrix = harrisMatrix * 1
     for i in range(feature_width, image.shape[0] - feature_width):
         for j in range(feature_width, image.shape[1] - feature_width):
-            localMatrix = suppressHarrisMatrix[i : i + feature_width, j : j + feature_width]
-            localIndex = np.argmax(localMatrix)
-            A = suppressHarrisMatrix[localIndex // feature_width + i, localIndex % feature_width + j] 
-            B = suppressHarrisMatrix[i, j]
-            if  A == B and A >= 0.1:
-                localMaxima.extend([[localIndex // feature_width + i, localIndex % feature_width + j]])
+            localMaxima[i, j] = np.max(suppressHarrisMatrix[i : i + feature_width, j : j + feature_width])
 
-    localMaxima = np.unique(localMaxima, axis = 0)
-    x = [item[0] for item in localMaxima]
-    y = [item[1] for item in localMaxima]
-    xs = np.array(x)
-    ys = np.array(y)
+    interestPoints =[]
+    globalMaxima = np.max(suppressHarrisMatrix)
+    localMaxima = (localMaxima == suppressHarrisMatrix)
+    for i in range(feature_width, image.shape[0] - feature_width):
+        for j in range(feature_width, image.shape[1] - feature_width):
+            if(localMaxima[i, j]) and suppressHarrisMatrix[i, j] >= (globalMaxima * 0.005):
+                interestPoints.extend([[i, j]])
 
+    xs = np.array([item[0] for item in interestPoints])
+    ys = np.array([item[1] for item in interestPoints])
     return ys, xs
 
 
@@ -282,8 +296,9 @@ def match_features(im1_features, im2_features):
     featureNumber1 = im1_features.shape[0]
     featureNumber2 = im2_features.shape[0]
     
-    distanceMatrix = getDistanceMatrix(im1_features, im2_features, featureNumber1, featureNumber2)
+    # distanceMatrix = getDistanceMatrix(im1_features, im2_features, featureNumber1, featureNumber2)
     # distanceMatrix = cdist(im1_features, im2_features, 'euclidean')
+    distanceMatrix = np.array([getDistanceArray(x, im2_features) for x in im1_features])
 
     indexSortedMatrix = np.zeros((featureNumber1, featureNumber2))
 

@@ -58,3 +58,10 @@ def get_interest_points(image, feature_width):
     ys = np.array(y)
 
     return ys, xs
+
+K = np.ones((8,8))
+A = np.array([np.ones((8,8)), 2*np.ones((8,8)), 3*np.ones((8,8))])
+B = np.array([[1,2,3],[3,4,99],[5,6,9]])
+C = np.array(np.sum(np.sum(A[:,2:4,2:4], axis = 1), axis = 1))
+print(C)
+print(C.shape)

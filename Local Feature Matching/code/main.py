@@ -135,6 +135,7 @@ def main():
     (x1, y1) = student.get_interest_points(image1,feature_width)
     (x2, y2) = student.get_interest_points(image2,feature_width)
     print(len(x1))
+    print(len(x2))
     # For development and debugging get_features and match_features, you will likely
     # want to use the ta ground truth points, you can comment out the precedeing two
     # lines and uncomment the following line to do this. Note that the ground truth
@@ -145,13 +146,13 @@ def main():
     # print(len(x1))
     # if you want to view your corners uncomment these next lines!
 
-    plt.imshow(image1, cmap="gray")
-    plt.scatter(x1, y1, alpha=0.9, s=3)
-    plt.show()
+    # plt.imshow(image1, cmap="gray")
+    # plt.scatter(x1, y1, alpha=0.9, s=3)
+    # plt.show()
 
-    plt.imshow(image2, cmap="gray")
-    plt.scatter(x2, y2, alpha=0.9, s=3)
-    plt.show()
+    # plt.imshow(image2, cmap="gray")
+    # plt.scatter(x2, y2, alpha=0.9, s=3)
+    # plt.show()
 
     print("Done!")
 
