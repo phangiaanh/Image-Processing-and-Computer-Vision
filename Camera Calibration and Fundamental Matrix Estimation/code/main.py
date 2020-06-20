@@ -9,7 +9,11 @@
 # (3) Computes the camera center from the projection matrix (you code this)
 # (4) Estimates the fundamental matrix                      (you code this)
 # (5) Adds noise to the points if asked                     (you code this)
+<<<<<<< HEAD
 # (6) Estimates the fundamental matrix using RANSAC         (you code this)
+=======
+# (6) Estimates the fundamental matrix using           (you code this)
+>>>>>>> 0216136df674e5b5ff81fdf83b6c8a69270a31d5
 #     and filters away spurious matches                                    
 # (7) Visualizes the F Matrix with homography rectification
 #
@@ -28,7 +32,11 @@ import os
 import cv2
 import argparse
 from skimage import io 
+<<<<<<< HEAD
 from scipy import misc
+=======
+from PIL import Image
+>>>>>>> 0216136df674e5b5ff81fdf83b6c8a69270a31d5
 from student import (calculate_projection_matrix, compute_camera_center,
                      estimate_fundamental_matrix, ransac_fundamental_matrix,
                      apply_positional_noise, apply_matching_noise)
@@ -98,7 +106,11 @@ def main(args):
         [Points_2D_pic_a, Points_2D_pic_b
          ] = get_ground_truth(data_dir + "MountRushmore/mt_rushmore.mat",
                               scale_factor_A=sf)
-        pic_a = misc.imresize(pic_a, sf, interp='bilinear')
+
+        im = Image.fromarray(pic_a)
+        size = tuple((np.array(im.size) * sf).astype(int))
+        pic_a = np.array(im.resize(size, Image.BILINEAR))
+        # pic_a = misc.imresize(pic_a, sf, interp='bilinear')
 
     # The Notre Dame pair is difficult because the keypoints are largely on the
     # same plane. Still, even an inaccurate fundamental matrix can do a pretty
@@ -110,7 +122,11 @@ def main(args):
         [Points_2D_pic_a, Points_2D_pic_b
          ] = get_ground_truth(data_dir + "NotreDame/notre_dame.mat",
                               scale_factor_A=sf)
-        pic_a = misc.imresize(pic_a, sf, interp='bilinear')
+
+        im = Image.fromarray(pic_a)
+        size = tuple((np.array(im.size) * sf).astype(int))
+        pic_a = np.array(im.resize(size, Image.BILINEAR))
+        # pic_a = misc.imresize(pic_a, sf, interp='bilinear')
 
     # The Gaudi pair doesn't find many correct matches unless you run at high
     # resolution, but that will lead to tens of thousands of ORB features
@@ -123,7 +139,11 @@ def main(args):
         [Points_2D_pic_a, Points_2D_pic_b
          ] = get_ground_truth(data_dir + "EpiscopalGaudi/gaudi.mat",
                               scale_factor_A=sf)
-        pic_a = misc.imresize(pic_a, sf, interp='bilinear')
+
+        im = Image.fromarray(pic_a)
+        size = tuple((np.array(im.size) * sf).astype(int))
+        pic_a = np.array(im.resize(size, Image.BILINEAR))
+        # pic_a = misc.imresize(pic_a, sf, interp='bilinear')
 
     else:
         print("Error in argument passed for image: ", args.image)
