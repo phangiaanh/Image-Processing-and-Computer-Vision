@@ -54,6 +54,7 @@ def main(args):
     # Calculate the projection matrix given corresponding 2D and 3D points
     # !!! You will need to implement calculate_projection_matrix. !!!
     M = calculate_projection_matrix(Points_2D, Points_3D)
+    
     print('The projection matrix is:\n {0}\n'.format(M))
 
     Projected_2D_Pts, Residual = evaluate_points(M, Points_2D, Points_3D)
@@ -87,7 +88,7 @@ def main(args):
                             Points_2D_pic_b)
 
     ########## Parts (6) through (8)
-    # This Mount Rushmore pair is easy. Most of the initial matches are
+    # This Mount Rushmore pair fis easy. Most of the initial matches are
     # correct. The base fundamental matrix estimation without coordinate
     # normalization will work fine with RANSAC.
     print("Using image: ", args.image)

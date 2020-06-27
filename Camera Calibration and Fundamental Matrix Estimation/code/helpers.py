@@ -189,12 +189,13 @@ def matchAndShowCorrespondence(imgA, imgB):
     fig = plt.figure()
     plt.imshow(img3)
     plt.axis('off')
-    plt.show()
 
     print('Saving visualization to vis_arrows.jpg\n')
     fig.savefig(os.path.dirname(__file__) + '/vis_arrows.png',
                 bbox_inches='tight',
                 dpi=300)
+
+    plt.show()
 
     return matches_kp1, matches_kp2
 

@@ -5,6 +5,7 @@
 
 import numpy as np
 from random import sample
+import time
 
 # Returns the projection matrix for a given set of corresponding 2D and
 # 3D points. 
@@ -36,16 +37,32 @@ def calculate_projection_matrix(Points_2D, Points_3D):
     #
     ##################
     # Your code here #
+    length = len(Points_2D)
+    
+    newPoints_2D = Points_2D.reshape((2 * length, 1))
+    newPoints_2D = np.repeat(newPoints_2D, repeats = 3, axis = 1)
+    newPoints_3D = np.repeat(Points_3D, repeats = 2, axis = 0)
+    
+    coeffMatrix = np.concatenate((newPoints_3D, np.ones((2 * length, 1)), newPoints_3D, np.ones((2 * length, 1)), newPoints_3D), axis = 1)
+    elimMatrix = np.array([[1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1], ] * length)
+    
+    coeffMatrix = coeffMatrix * elimMatrix
+    elimMatrix = np.concatenate((np.ones((2 * length, 8)), -newPoints_2D), axis = 1)
+    
+    coeffMatrix = coeffMatrix * elimMatrix
     ##################
 
     # This M matrix came from a call to rand(3,4). It leads to a high residual.
     # Your total residual should be less than 1.
     print('Randomly setting matrix entries as a placeholder')
-    M = np.array([[0.1768, 0.7018, 0.7948, 0.4613],
-                  [0.6750, 0.3152, 0.1136, 0.0480],
-                  [0.1020, 0.1725, 0.7244, 0.9932]])
+    # M = np.array([[0.1768, 0.7018, 0.7948, 0.4613],
+    #               [0.6750, 0.3152, 0.1136, 0.0480],
+    #               [0.1020, 0.1725, 0.7244, 0.9932]])
+    projectionMatrix = np.linalg.lstsq(coeffMatrix, Points_2D.reshape((2 * length, 1)))
+    projectionMatrix = np.concatenate((projectionMatrix[0].flatten(), [1]), axis = 0)
+    projectionMatrix = np.array(projectionMatrix).reshape((3, 4))
 
-    return M
+    return projectionMatrix
 
 # Returns the camera center matrix for a given projection matrix
 # 'M' is the 3x4 projection matrix
@@ -53,15 +70,16 @@ def calculate_projection_matrix(Points_2D, Points_3D):
 def compute_camera_center(M):
     ##################
     # Your code here #
+    inverseMatrix = np.linalg.inv(M[0 : 3, 0 : 3])
+    center = -inverseMatrix @ M[:, 3]
     ##################
 
     # Replace this with the correct code
     # In the visualization you will see that this camera location is clearly
     # incorrect, placing it in the center of the room where it would not see all
     # of the points.
-    Center = np.array([1,1,1]) 
 
-    return Center
+    return center
 
 # Returns the camera center matrix for a given projection matrix
 # 'Points_a' is nx2 matrix of 2D coordinate of points on Image A
@@ -72,12 +90,17 @@ def estimate_fundamental_matrix(Points_a,Points_b):
     # called repeatly for part III of the project
     ##################
     # Your code here #
+    length = len(Points_a)
+
+    coeffMatrix = np.concatenate((Points_a, np.ones((length, 1)), Points_a, np.ones((length, 1)), Points_a), axis = 1)
+    elimMatrix = np.concatenate((np.repeat(Points_b, repeats = 3, axis = 1), np.ones((length, 2))), axis = 1)
+    coeffMatrix = coeffMatrix * elimMatrix
+
+    fundamentalMatrix = np.linalg.lstsq(coeffMatrix, -np.ones((length, 1)))
+    fundamentalMatrix = np.concatenate((fundamentalMatrix[0].flatten(), [1]), axis = 0)
     ##################
 
-    # This is an intentionally incorrect Fundamental matrix placeholder
-    F_matrix = np.array([[0,0,-.0004],[0,0,.0032],[0,-0.0044,.1034]])
-
-    return F_matrix
+    return fundamentalMatrix.reshape((3, 3))
 
 # Takes h, w to handle boundary conditions
 def apply_positional_noise(points, h, w, interval=3, ratio=0.2):
@@ -93,7 +116,7 @@ def apply_positional_noise(points, h, w, interval=3, ratio=0.2):
         - np.clip
 
     Arugments:
-        points :: numpy array 
+        points :: numpy array ~
             - shape: [num_points, 2] ( note that it is <x,y> )
             - desc: points for the image in an array
         h :: int 
