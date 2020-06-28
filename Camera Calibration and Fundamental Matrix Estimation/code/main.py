@@ -81,7 +81,7 @@ def main(args):
     # Calculate the fundamental matrix given corresponding point pairs
     # !!! You will need to implement estimate_fundamental_matrix. !!!
     F_matrix = estimate_fundamental_matrix(Points_2D_pic_a, Points_2D_pic_b)
-
+    print(F_matrix)
     # Draw the epipolar lines on the images
     if not args.no_vis:
         draw_epipolar_lines(F_matrix, ImgLeft, ImgRight, Points_2D_pic_a,
@@ -99,7 +99,6 @@ def main(args):
         [Points_2D_pic_a, Points_2D_pic_b
          ] = get_ground_truth(data_dir + "MountRushmore/mt_rushmore.mat",
                               scale_factor_A=sf)
-
         im = Image.fromarray(pic_a)
         size = tuple((np.array(im.size) * sf).astype(int))
         pic_a = np.array(im.resize(size, Image.BILINEAR))

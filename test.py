@@ -1,14 +1,14 @@
 import numpy as np
+import random
 
-A = np.array([[1,1,1],[2,2,2],[3,3,3],[4,4,4],[5,5,5],[6,6,6]])
-C = np.array([[1,1,1,1,0,0,0,0,1,1,1], [0,0,0,0,1,1,1,1,1,1,1],]*4)
-D = np.array([2,1,2,3,4,5])
-E = np.array([D,]*2).transpose()
+A = np.array([[1,1,1],[2,2,2],[3,2.9,3],[4,4,4],[5,5,5],[6,6,6],[7,7,7],[8,8,8],[9,9,9]])
+B = np.array([[1,1],[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9],[10,10],[11,11],[12,12]])
+# np.random.shuffle(A[2:6])
 
-Points_a = np.array([[1,2],[3,4],[5,6],[7,8]])
-length = len(Points_a)
-X = np.concatenate((Points_a, np.ones((length, 1)), Points_a, np.ones((length, 1)), Points_a), axis = 1)
+C = np.array([1,2,3,4,5,6,7])
+length = len(B)
+noisyPlaces = int(length * 0.4)
 
-Points = np.concatenate((np.repeat(Points_a, repeats = 3, axis = 1), np.ones((length, 2))), axis = 1)
-print(X)
-print(Points)
+D = np.array([1,2,3,4,-5,6,-7,8,-9])
+E = D % 2 == 0
+print(sum(E))

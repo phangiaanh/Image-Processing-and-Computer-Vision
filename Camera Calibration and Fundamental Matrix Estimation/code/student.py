@@ -5,7 +5,7 @@
 
 import numpy as np
 from random import sample
-import time
+import copy
 
 # Returns the projection matrix for a given set of corresponding 2D and
 # 3D points. 
@@ -133,8 +133,16 @@ def apply_positional_noise(points, h, w, interval=3, ratio=0.2):
     """
     ##################
     # Your code here #
+    newPoints = copy.copy(points)
+    length = len(points)
+    noisyPlaces = int(length * ratio)
+
+    random = (np.random.rand(noisyPlaces, 2) - 0.5) * 2 * interval
+    offset = np.concatenate((random, np.zeros((length - noisyPlaces, 2))))
+    np.random.shuffle(offset)
     ##################
-    return points
+    newPoints = newPoints + offset
+    return np.clip(newPoints, [0, 0], [w, h])
 
 # Apply noise to the matches. 
 def apply_matching_noise(points, ratio=0.2):
@@ -156,8 +164,15 @@ def apply_matching_noise(points, ratio=0.2):
     """
     ##################
     # Your code here #
+    newPoints = copy.copy(points)
+    length = len(points)
+    noisyPlaces = int(length * ratio)
+
+    startNoisy = np.random.randint(0, length - noisyPlaces)
+    np.random.shuffle(newPoints[startNoisy : startNoisy + noisyPlaces])
+
     ##################
-    return points
+    return newPoints
 
 
 # Find the best fundamental matrix using RANSAC on potentially matching
@@ -183,9 +198,32 @@ def ransac_fundamental_matrix(matches_a, matches_b):
     # Your ransac loop should contain a call to 'estimate_fundamental_matrix()'
     # that you wrote for part II.
 
-    # placeholders, you can delete all of this
-    Best_Fmatrix = estimate_fundamental_matrix(matches_a[0:9,:],matches_b[0:9,:])
-    inliers_a = matches_a[0:29,:]
-    inliers_b = matches_b[0:29,:]
+    length = len(matches_a)
+    threshold = 0.15
+    bestInliers = np.array([])
+    bestInlierNumber = 0
+    bestMatrix = np.zeros((3, 3))
 
-    return Best_Fmatrix, inliers_a, inliers_b
+    picATest = np.concatenate((matches_a, np.ones((length, 1))), axis = 1)
+    picBTest = np.concatenate((matches_b, np.ones((length, 1))), axis = 1)
+
+    for i in range(1000):
+        index = sample(range(length), 9)
+        pic_a = matches_a[index]
+        pic_b = matches_b[index]
+        fundamentalMatrix = estimate_fundamental_matrix(pic_a, pic_b)
+        
+        testArray = np.sum(picATest @ fundamentalMatrix * picBTest, axis = 1)
+        testIndex = abs(testArray) < threshold
+        testSum = sum(testIndex)
+
+        if testSum > bestInlierNumber:
+            bestInlierNumber = testSum
+            bestInliers = testIndex
+            bestMatrix = fundamentalMatrix
+    print(length)
+    print(bestInliers)
+    print(sum(bestInliers))
+    
+
+    return bestMatrix, matches_a[bestInliers], matches_b[bestInliers]
