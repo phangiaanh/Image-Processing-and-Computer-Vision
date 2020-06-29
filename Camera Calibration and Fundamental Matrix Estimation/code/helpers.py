@@ -210,7 +210,7 @@ def showCorrespondence(imgA, imgB, matches_kp1, matches_kp2):
     plt.axis('off')
 
     Height = max(imgA.shape[0], imgB.shape[0])
-    Width = imgA.shape[1] + imgB.shape[1]
+    Width = imgA.shape[1] + imgB.shape[1]    
     numColors = imgA.shape[2]
 
     newImg = np.zeros([Height, Width, numColors])

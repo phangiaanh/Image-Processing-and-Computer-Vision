@@ -82,6 +82,7 @@ def main(args):
     # !!! You will need to implement estimate_fundamental_matrix. !!!
     F_matrix = estimate_fundamental_matrix(Points_2D_pic_a, Points_2D_pic_b)
     print(F_matrix)
+
     # Draw the epipolar lines on the images
     if not args.no_vis:
         draw_epipolar_lines(F_matrix, ImgLeft, ImgRight, Points_2D_pic_a,

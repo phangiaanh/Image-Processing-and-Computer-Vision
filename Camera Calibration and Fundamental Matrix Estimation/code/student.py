@@ -12,7 +12,7 @@ def normalize(in_points):
     points = copy.copy(in_points)
     length = len(points)
     meanCoor = np.mean(points, axis = 0)
-
+    
     newX = points[:, 0] - meanCoor[0]
     newY = points[:, 1] - meanCoor[1]
 
@@ -72,19 +72,14 @@ def calculate_projection_matrix(Points_2D, Points_3D):
     elimMatrix = np.concatenate((np.ones((2 * length, 8)), -newPoints_2D), axis = 1)
     
     coeffMatrix = coeffMatrix * elimMatrix
-    ##################
 
-    # This M matrix came from a call to rand(3,4). It leads to a high residual.
-    # Your total residual should be less than 1.
-    print('Randomly setting matrix entries as a placeholder')
-    # M = np.array([[0.1768, 0.7018, 0.7948, 0.4613],
-    #               [0.6750, 0.3152, 0.1136, 0.0480],
-    #               [0.1020, 0.1725, 0.7244, 0.9932]])
     projectionMatrix = np.linalg.lstsq(coeffMatrix, Points_2D.reshape((2 * length, 1)))
     projectionMatrix = np.concatenate((projectionMatrix[0].flatten(), [1]), axis = 0)
     projectionMatrix = np.array(projectionMatrix).reshape((3, 4))
 
     return projectionMatrix
+    ##################
+    
 
 # Returns the camera center matrix for a given projection matrix
 # 'M' is the 3x4 projection matrix
@@ -94,14 +89,10 @@ def compute_camera_center(M):
     # Your code here #
     inverseMatrix = np.linalg.inv(M[0 : 3, 0 : 3])
     center = -inverseMatrix @ M[:, 3]
+    
+    return center
     ##################
 
-    # Replace this with the correct code
-    # In the visualization you will see that this camera location is clearly
-    # incorrect, placing it in the center of the room where it would not see all
-    # of the points.
-
-    return center
 
 # Returns the camera center matrix for a given projection matrix
 # 'Points_a' is nx2 matrix of 2D coordinate of points on Image A
@@ -123,9 +114,10 @@ def estimate_fundamental_matrix(Points_a,Points_b):
 
     fundamentalMatrix = np.linalg.lstsq(coeffMatrix, -np.ones((length, 1)))
     fundamentalMatrix = np.concatenate((fundamentalMatrix[0].flatten(), [1]), axis = 0)
-    ##################
     fundamentalMatrix = fundamentalMatrix.reshape((3, 3))
-    return ((Tb.T) @ fundamentalMatrix @ (Ta)).T
+    
+    return ((Tb.T) @ fundamentalMatrix @ (Ta))
+    ##################
 
 # Takes h, w to handle boundary conditions
 def apply_positional_noise(points, h, w, interval=3, ratio=0.2):
@@ -165,9 +157,10 @@ def apply_positional_noise(points, h, w, interval=3, ratio=0.2):
     random = (np.random.rand(noisyPlaces, 2) - 0.5) * 2 * interval
     offset = np.concatenate((random, np.zeros((length - noisyPlaces, 2))))
     np.random.shuffle(offset)
-    ##################
+    
     newPoints = newPoints + offset
     return np.clip(newPoints, [0, 0], [w, h])
+    ##################
 
 # Apply noise to the matches. 
 def apply_matching_noise(points, ratio=0.2):
@@ -196,8 +189,8 @@ def apply_matching_noise(points, ratio=0.2):
     startNoisy = np.random.randint(0, length - noisyPlaces)
     np.random.shuffle(newPoints[startNoisy : startNoisy + noisyPlaces])
 
-    ##################
     return newPoints
+    ##################
 
 
 # Find the best fundamental matrix using RANSAC on potentially matching
@@ -232,13 +225,14 @@ def ransac_fundamental_matrix(matches_a, matches_b):
     picATest = np.concatenate((matches_a, np.ones((length, 1))), axis = 1)
     picBTest = np.concatenate((matches_b, np.ones((length, 1))), axis = 1)
 
-    for i in range(1000):
+    for _ in range(1000):
         index = sample(range(length), 9)
         pic_a = matches_a[index]
         pic_b = matches_b[index]
         fundamentalMatrix = estimate_fundamental_matrix(pic_a, pic_b)
         
-        testArray = np.sum(picATest @ fundamentalMatrix * picBTest, axis = 1)
+        testArray = np.sum(picBTest @ fundamentalMatrix * picATest, axis = 1)
+        
         testIndex = abs(testArray) < threshold
         testSum = sum(testIndex)
 
@@ -246,8 +240,5 @@ def ransac_fundamental_matrix(matches_a, matches_b):
             bestInlierNumber = testSum
             bestInliers = testIndex
             bestMatrix = fundamentalMatrix
-    print(length)
-    print(sum(bestInliers))
-    
 
     return bestMatrix, matches_a[bestInliers], matches_b[bestInliers]
