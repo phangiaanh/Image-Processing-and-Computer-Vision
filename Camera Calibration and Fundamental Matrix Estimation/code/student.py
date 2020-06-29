@@ -7,6 +7,28 @@ import numpy as np
 from random import sample
 import copy
 
+
+def normalize(in_points):
+    points = copy.copy(in_points)
+    length = len(points)
+    meanCoor = np.mean(points, axis = 0)
+
+    newX = points[:, 0] - meanCoor[0]
+    newY = points[:, 1] - meanCoor[1]
+
+    stdX = 1 / np.std(newX)
+    stdY = 1 / np.std(newY)
+
+    T1 = np.array([[stdX, 0, 0], [0, stdY, 0], [0, 0, 1]])
+    T2 = np.array([[1, 0, -meanCoor[0]], [0, 1, -meanCoor[1]], [0, 0, 1]])
+
+    A = np.concatenate((points, np.ones((length, 1))), axis = 1)
+
+    K = T1 @ T2
+    T = K @ (A.T)
+    
+    return T.T, K
+
 # Returns the projection matrix for a given set of corresponding 2D and
 # 3D points. 
 # 'Points_2D' is nx2 matrix of 2D coordinate of points on the image
@@ -92,15 +114,18 @@ def estimate_fundamental_matrix(Points_a,Points_b):
     # Your code here #
     length = len(Points_a)
 
-    coeffMatrix = np.concatenate((Points_a, np.ones((length, 1)), Points_a, np.ones((length, 1)), Points_a), axis = 1)
-    elimMatrix = np.concatenate((np.repeat(Points_b, repeats = 3, axis = 1), np.ones((length, 2))), axis = 1)
+    [Points_a, Ta] = normalize(Points_a)
+    [Points_b, Tb] = normalize(Points_b)
+
+    coeffMatrix = np.concatenate((Points_a, Points_a,Points_a[:,0 : 2]), axis = 1)
+    elimMatrix = np.concatenate((np.repeat(Points_b[:, 0 : 2], repeats = 3, axis = 1), np.ones((length, 2))), axis = 1)
     coeffMatrix = coeffMatrix * elimMatrix
 
     fundamentalMatrix = np.linalg.lstsq(coeffMatrix, -np.ones((length, 1)))
     fundamentalMatrix = np.concatenate((fundamentalMatrix[0].flatten(), [1]), axis = 0)
     ##################
-
-    return fundamentalMatrix.reshape((3, 3))
+    fundamentalMatrix = fundamentalMatrix.reshape((3, 3))
+    return ((Tb.T) @ fundamentalMatrix @ (Ta)).T
 
 # Takes h, w to handle boundary conditions
 def apply_positional_noise(points, h, w, interval=3, ratio=0.2):
@@ -199,7 +224,7 @@ def ransac_fundamental_matrix(matches_a, matches_b):
     # that you wrote for part II.
 
     length = len(matches_a)
-    threshold = 0.15
+    threshold = 0.1
     bestInliers = np.array([])
     bestInlierNumber = 0
     bestMatrix = np.zeros((3, 3))
@@ -222,7 +247,6 @@ def ransac_fundamental_matrix(matches_a, matches_b):
             bestInliers = testIndex
             bestMatrix = fundamentalMatrix
     print(length)
-    print(bestInliers)
     print(sum(bestInliers))
     
 
